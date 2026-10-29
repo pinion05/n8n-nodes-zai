@@ -1,0 +1,36 @@
+{
+  "name": "n8n-nodes-zai",
+  "version": "1.0.0",
+  "description": "n8n node to call OpenAI-compatible LLM APIs directly — Z.ai GLM coding/normal plans or any custom baseUrl (freellmapi, OpenRouter, vLLM). Model dropdown, thinking toggle, temperature, JSON mode, per-item concurrency, clean-failure output.",
+  "keywords": [
+    "n8n-community-node-package",
+    "n8n",
+    "zai",
+    "z.ai",
+    "glm",
+    "llm",
+    "openai-compatible"
+  ],
+  "license": "MIT",
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "nodes": [
+      "nodes/ZaiLlm.node.js"
+    ]
+  },
+  "main": "index.js",
+  "files": [
+    "nodes",
+    "index.js",
+    "README.md"
+  ],
+  "author": "pinion05",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pinion05/n8n-nodes-zai.git"
+  },
+  "homepage": "https://github.com/pinion05/n8n-nodes-zai",
+  "bugs": {
+    "url": "https://github.com/pinion05/n8n-nodes-zai/issues"
+  }
+}
