@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-zai",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "n8n node to call OpenAI-compatible LLM APIs directly — Z.ai GLM coding/normal plans or any custom baseUrl (freellmapi, OpenRouter, vLLM). Model dropdown, thinking toggle, temperature, JSON mode, per-item concurrency, clean-failure output.",
   "keywords": [
     "n8n-community-node-package",

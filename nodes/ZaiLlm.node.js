@@ -141,8 +141,8 @@ class ZaiLlm {
 						json: true,
 						timeout: 15000,
 					});
-					const list = (res && res.data) || [];
-					return list.map((m) => ({ name: `${m.id}`, value: m.id }));
+					const list = Array.isArray(res) ? res : (res && res.data) || []; // bare array 게이트웨이도 수용
+					return list.filter((m) => m && m.id).map((m) => ({ name: `${m.id}`, value: m.id }));
 				} catch (e) {
 					return [{ name: `(목록 로드 실패 — 표현식으로 지정: ${String(e.message).slice(0, 60)})`, value: '' }];
 				}
@@ -159,8 +159,6 @@ class ZaiLlm {
 		if (endpoint === 'custom') base = (this.getNodeParameter('baseUrl', 0) || '').replace(/\/$/, '');
 		if (!base) throw new Error('Custom 엔드포인트 선택 시 Base URL이 필요하다');
 		const cred = await this.getCredentials('httpHeaderAuth');
-		const jsonMode = this.getNodeParameter('options', 0)?.jsonMode || false;
-
 		const runItem = async (i) => {
 			const model = this.getNodeParameter('model', i) || '';
 			const system = this.getNodeParameter('system', i) || '';
@@ -169,6 +167,7 @@ class ZaiLlm {
 			const temperature = Number(this.getNodeParameter('temperature', i)) || 0;
 			const maxTokens = Number(this.getNodeParameter('maxTokens', i)) || 0;
 			const timeoutSec = Number(this.getNodeParameter('timeoutSec', i)) || 120;
+			const jsonMode = this.getNodeParameter('options', i)?.jsonMode || false; // 아이템별 평가 (기존엔 item 0 고정)
 
 			const messages = [];
 			if (system) messages.push({ role: 'system', content: system });
@@ -181,25 +180,36 @@ class ZaiLlm {
 			if (maxTokens > 0) body.max_tokens = maxTokens;
 			if (jsonMode) body.response_format = { type: 'json_object' };
 
+			const headers = { 'Content-Type': 'application/json' };
+			// httpHeaderAuth 값에 Bearer 접두가 없으면 자동 보정 (값만 저장한 자격증명 401 방지)
+			headers.Authorization = cred.value && !/^Bearer\s/i.test(String(cred.value)) ? `Bearer ${cred.value}` : cred.value;
+
 			try {
 				const res = await this.helpers.httpRequest({
 					url: `${base}/chat/completions`,
 					method: 'POST',
-					headers: { Authorization: cred.value, 'Content-Type': 'application/json' },
+					headers,
 					body,
 					json: true,
 					timeout: timeoutSec * 1000,
 				});
-				const choice = (res.choices || [{}])[0];
+				// 200이지만 choices 없는 에러 바디(게이트웨이 과부하·업스트림 실패)를 ok:true+빈텍스트로 위장하지 않는다
+				const choices = Array.isArray(res && res.choices) ? res.choices : null;
+				if (!choices || !choices.length) {
+					const hint = typeof res === 'string' ? res.slice(0, 200) : JSON.stringify(res)?.slice(0, 300);
+					return { json: { ok: false, text: '', model, usage: null, finishReason: null, error: `choices 없는 응답: ${hint}` } };
+				}
+				const choice = choices[0];
 				const msg = choice.message || {};
 				let text = msg.content || '';
+				const reasoning = msg.reasoning_content || msg.reasoning || null; // thinking 누수 디버깅용 별도 수집
 				if (jsonMode) {
 					try { text = JSON.parse(text); } catch { /* 원문 유지 */ }
 				}
-				return { json: { ok: true, text, model: res.model || model, usage: res.usage || null, finishReason: choice.finish_reason || null } };
+				return { json: { ok: true, text, reasoning, model: res.model || model, usage: res.usage || null, finishReason: choice.finish_reason || null } };
 			} catch (e) {
 				const detail = e.response ? `${e.response.statusCode || ''} ${String(e.message).slice(0, 200)}` : String(e.message || e).slice(0, 200);
-				return { json: { ok: false, text: '', model, usage: null, finishReason: null, error: detail } };
+				return { json: { ok: false, text: '', reasoning: null, model, usage: null, finishReason: null, error: detail } };
 			}
 		};
 
